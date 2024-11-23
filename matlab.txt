@@ -206,6 +206,73 @@ CurrentBFS.Properties.VariableNames(1:size(CurrentBFS,2))=Variables
 
 
 
+%twophase
+clc
+clear all
+format short
+Variables={'x1', 'x2', 'x3', 's1', 's2', 'A1', 'A2', 'Sol'}
+OVariables={'x1', 'x2', 'x3', 's1', 's2', 'Sol'}
+OrigC=[-7.5,3,0,0,0,-1,-1,0]
+Info=[3,-1,-1,-1,0,1,0,3; 1,-1,1,0,-1,0,1,2]
+BV=[6 7]
+Cost=[0,0,0,0,0,-1,-1,0]
+A=Info
+StartBV=find(Cost<0)
+[BFS,A]=simp(A,BV,Cost,Variables)
+A(:,StartBV)=[]
+OrigC(:,StartBV)=[]
+[OptBFS,OptA]=simp(A,BFS,OrigC,OVariables)
+Final_BFS=zeros(1,size(A,2))
+Final_BFS(OptBFS)=OptA(:,end)
+Final_BFS(end)=sum(Final_BFS.*OrigC)
+OptimalBFS=array2table(Final_BFS)
+OptimalBFS.Properties.VariableNames(1:size(OptimalBFS,2))=OVariables
+function[BFS,A]=simp(A,BV,Cost,Variables)
+    ZjCj=Cost(BV)*A-Cost
+    Run=true
+    while Run
+        ZC=ZjCj(1,1:end-1)
+        if any(ZC<0)
+            fprintf('The current BFS is not optimal')
+            [EnteringValue, Pvt_Col]=min(ZC)
+            fprintf('Entering Column = %d \n',Pvt_Col)
+            sol=A(:,end)
+            Column=A(:,Pvt_Col)
+            if all(Column<=0)
+                error('LPP has unbounded solution. All entries <=0 in Column %d',Pvt_Col)
+            else
+                for i=1:size(Column,1)
+                    if Column(i)>0
+                        ratio(i)=sol(i)./Column(i)
+                    else
+                        ratio(i)=inf
+                    end
+                end
+                [MinRatio, Pvt_Row]=min(ratio)
+                fprintf('Leaving Row is %d \n', Pvt_Row)
+            end
+            BV(Pvt_Row)=Pvt_Col
+            Pvt_Key=A(Pvt_Row, Pvt_Col)
+            A(Pvt_Row,:)=A(Pvt_Row,:)./Pvt_Key
+            for i=1:size(A,1)
+                if i~=Pvt_Row
+                    A(i,:) = A(i,:)-A(i,Pvt_Col).*A(Pvt_Row,:)
+                end
+            end
+            ZjCj = ZjCj-ZjCj(Pvt_Col).*A(Pvt_Row,:)
+            ZCj = [ZjCj;A]
+            Table = array2table(ZCj);
+            Table.Properties.VariableNames(1:size(ZCj,2))=Variables
+        else
+             Run = false;
+             fprintf('The current BFS is optimal')
+             BFS = BV
+        end
+    end
+end
+
+
+
 
 %lcm
 format short
