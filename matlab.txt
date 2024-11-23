@@ -65,6 +65,9 @@ ST.Properties.VariableNames(1:size(ZjCj,2))={'x1','x2','x3','s1', 's2', 's3', 's
      end
 end
 
+
+
+
 %BigM
 clc
 clear all
@@ -130,6 +133,9 @@ BFS(BV) = A(:,end)
 BFS(end) = sum(BFS.*Cost)
 CurrentBFS = array2table(BFS);
 CurrentBFS.Properties.VariableNames(1:size(CurrentBFS,2))=Variables
+
+
+
 
 %dualsimplex
 clc
@@ -197,6 +203,9 @@ BFS(BV) = A(:,end)
 BFS(end) = sum(BFS.*Cost)
 CurrentBFS = array2table(BFS);
 CurrentBFS.Properties.VariableNames(1:size(CurrentBFS,2))=Variables
+
+
+
 
 %lcm
 format short
