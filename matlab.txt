@@ -1,0 +1,264 @@
+%simplex
+clc
+clear all
+C = [-1, 3, -2]
+info = [3, -1, 2; -2, 4, 0; -4, 3, 8]
+b = [7; 12; 10]
+Nov = size(info, 2)
+s = eye(size(info,1))
+A = [info s b]
+BV = Nov+1 : size(A,2)-1
+cost = zeros(1,size(A,2))
+cost(1:Nov) = C   
+ZRow = cost(BV)*A-cost
+ZjCj = [ZRow;A]
+ST = array2table(ZjCj)
+ST.Properties.VariableNames(1:size(ZjCj,2))={'x1','x2','x3','s1', 's2', 's3', 'sol'}
+ Run = true;
+ while Run
+    if any(ZRow<0)
+        fprintf('The current BFS is not optimal')
+        disp('old Basic Variables are (BV)=')
+        disp(BV)
+        ZR = ZRow(1:end-1)
+        [EV, PC] = min(ZR)
+        fprintf('The most negative entry in ZRow is %d and the corresponding entering column is %d', EV, PC)
+        % leaving var col code start
+        sol = A(:,end)
+        column = A(:,PC)
+        if all(column<=0)
+             error('LPP has unbounded solution. All entries <=0 in column %d',PC)
+         else 
+             for i = 1:size(A,1)
+                 if (column(i)>0)
+                     ratio(i) = sol(i)./column(i)
+                 else 
+                     ratio(i) = inf
+                 end
+             end
+         [MR, PR] = min(ratio)
+         fprintf('Minimum ratio corresponding to pivot row is %d \n',PR)
+         fprintf('The leaving variable pos is %d', BV(PR))
+         end
+         BV(PR) = PC;
+         disp('New Basic Variables (BV) =')
+         disp(BV)
+         Pvt_Key = A(PR, PC)
+         A(PR,:) = A(PR,:)./Pvt_Key
+         for i = 1:size(A,1)
+             if i~=PR
+                 A(i,:) = A(i,:)-A(i,PC).*A(PR,:);
+             end
+             ZRow = ZRow-ZRow(PC).*A(PR,:);
+             ZjCj = [ZRow;A];
+             ST = array2table(ZjCj);
+             ST.Properties.VariableNames(1:size(ZjCj,2))={'x1','x2','x3','s1', 's2', 's3', 'sol'}
+             BFS = zeros(1,size(A,2));
+             BFS(BV) = A(:,end);
+             BFS(end)=sum(BFS.*cost);
+             CurrentBFS = array2table(BFS);
+             CurrentBFS.Properties.VariableNames(1:size(CurrentBFS,2))={'x1','x2','x3','s1', 's2', 's3', 'sol'}
+         end
+    else
+         Run = false;
+         fprintf('The current BFS is optimal and optimality reached')
+     end
+end
+
+%BigM
+clc
+clear all
+format short
+Variables = {'x1','x2', 's2', 's3', 'A1', 'A2','sol'}
+M = 1000
+Cost = [-2, -1, 0, 0, -M, -M, 0]
+A = [3, 1, 0, 0, 1, 0, 3; 4, 3, -1, 0, 0, 1, 6; 1, 2, 0, 1, 0, 0, 3]
+s = eye(size(A,1))
+BV = []
+for j=1:size(s,2)
+    for i=1:size(A,2)
+        if A(:,i)==s(:,j)
+            BV = [BV i]
+        end
+    end
+end
+ZjCj = Cost(BV)*A-Cost
+ZCj = [ZjCj;A];
+SimpleTable = array2table(ZCj)
+SimpleTable.Properties.VariableNames(1:size(ZCj,2))=Variables
+Run = true;
+while Run
+    ZC = ZjCj(:,1:end-1);
+    if any(ZC<0)
+        fprintf('The current BFS is not optimal')
+        [Entval, Pvt_Col] = min(ZC);
+        fprintf('Entering Column is %d \n', Pvt_Col)
+        sol = A(:,end)
+        Column = A(:,Pvt_Col)
+        if all(Column<=0)
+             error('LPP has unbounded solution. All entries <=0 in column %d',Pvt_Col)
+        else 
+             for i = 1:size(Column,1)
+                 if (Column(i)>0)
+                     ratio(i) = sol(i)./Column(i)
+                 else 
+                     ratio(i) = inf
+                 end
+             end
+             [MinRatio, Pvt_Row] = min(ratio)
+             fprintf('The leaving row is %d', Pvt_Row)
+         end
+         BV(Pvt_Row) = Pvt_Col;
+         Pvt_Key = A(Pvt_Row, Pvt_Col);
+         A(Pvt_Row,:) = A(Pvt_Row,:)./Pvt_Key;
+         for i = 1:size(A,1)
+             if i~=Pvt_Row
+                 A(i,:) = A(i,:)-A(i,Pvt_Col).*A(Pvt_Row,:);
+             end
+             ZjCj = ZjCj-ZjCj(Pvt_Col).*A(Pvt_Row,:);
+             ZCj = [ZjCj;A];
+             SimpleTable = array2table(ZCj);
+             SimpleTable.Properties.VariableNames(1:size(ZCj,2))=Variables
+         end
+    else
+         Run = false;
+         fprintf('The current BFS is optimal and optimality reached')
+     end
+end
+BFS = zeros(1,size(A,2))
+BFS(BV) = A(:,end)
+BFS(end) = sum(BFS.*Cost)
+CurrentBFS = array2table(BFS);
+CurrentBFS.Properties.VariableNames(1:size(CurrentBFS,2))=Variables
+
+%dualsimplex
+clc
+clear all
+format short
+Variables = {'x1','x2', 'x3', 's1', 's2','sol'}
+Cost = [-2, 0, -1, 0, 0, 0]
+Info = [-1, -1, 1; -1, 2, -4]
+b = [-5; -8]
+s = eye(size(Info, 1))
+A = [Info s b]
+BV = []
+for j=1:size(s,2)
+    for i=1:size(A,2)
+        if A(:,i)==s(:,j)
+            BV = [BV i]
+        end
+    end
+end
+fprintf('Basic Variables (BV) =')
+disp(Variables(BV))
+ZjCj = Cost(BV)*A-Cost
+ZCj = [ZjCj;A];
+SimpTable = array2table(ZCj)
+SimpTable.Properties.VariableNames(1:size(ZCj,2))=Variables
+Run = true;
+while Run
+    sol = A(:,end)
+    if any(sol<0)
+        fprintf('The current BFS is not feasible')
+        [Leaving_Value, Pvt_Row] = min(sol);
+        fprintf('Leaving Row is %d \n', Pvt_Row)
+        Row = A(Pvt_Row, 1:end-1)
+        ZRow = ZjCj(:, 1:end-1)  
+        for i = 1:size(Row,1)
+             if (Row(i)<0)
+                 ratio(i) = abs(ZRow(i)./Row(i))
+             else 
+                 ratio(i) = inf
+             end
+         end
+         [MinRatio, Pvt_Col] = min(ratio)
+         fprintf('The entering variable is %d', Pvt_Col)
+         BV(Pvt_Row) = Pvt_Col;
+         fprintf('Basic Variables (BV) =')
+         disp(Variables(BV))
+         Pvt_Key = A(Pvt_Row, Pvt_Col);
+         A(Pvt_Row,:) = A(Pvt_Row,:)./Pvt_Key;
+         for i = 1:size(A,1)
+             if i~=Pvt_Row
+                 A(i,:) = A(i,:)-A(i,Pvt_Col).*A(Pvt_Row,:);
+             end
+             ZjCj = ZjCj-ZjCj(Pvt_Col).*A(Pvt_Row,:);
+             ZCj = [ZjCj;A];
+             SimpleTable = array2table(ZCj);
+             SimpleTable.Properties.VariableNames(1:size(ZCj,2))=Variables
+         end
+    else
+         Run = false;
+         fprintf('The current BFS is feasible and optimal')
+    end
+end
+BFS = zeros(1,size(A,2))
+BFS(BV) = A(:,end)
+BFS(end) = sum(BFS.*Cost)
+CurrentBFS = array2table(BFS);
+CurrentBFS.Properties.VariableNames(1:size(CurrentBFS,2))=Variables
+
+%lcm
+format short
+clc
+clear all
+% max allocation, min cost
+
+%input data
+cost=[11 20 7 8; 21 16 10 12; 8 12 18 9];
+A=[50 40 70] %supply matrix
+B=[30 25 35 40] %demand matrix
+
+% Check if problem is unbalanced/balanced
+if sum(A)==sum(B)
+    fprintf('The given problem is balanced \n')
+else
+    fprintf('The given problem is unbalanced \n')
+
+    if sum(A)<sum(B)
+        cost(end+1,:)=zeros(1,size(B,2))
+        A(end+1)=sum(B)-sum(A);
+    
+    elseif sum(B)<sum(A)
+        cost(:,end+1)=zeros(size(A,2),1);
+        B(end+1)=sum(A)-sum(B)
+    end
+end
+ICost=cost; %save cost copy
+X=zeros(size(cost)); %Initialize allocation
+[m,n]=size(cost) %finding no of rows and columns
+BFS=m+n-1; %no of basic feasible solutions
+
+for i=1:size(cost,1)
+    for j=1:size(cost,2)
+hh=min(cost(:)); %finding min cost of value
+[row_index,col_index]=find(hh==cost)
+
+x11=min(A(row_index),B(col_index));
+[value,index]=max(x11);
+
+ii=row_index(index);
+jj=col_index(index);
+
+y11=min(A(ii),B(jj));
+
+X(ii,jj)=y11;
+
+A(ii)=A(ii)-y11;
+B(jj)=B(jj)-y11;
+cost(ii,jj)=Inf;
+    end
+end
+
+fprintf('Initial BFS = \n')
+IBFS=array2table(X)
+disp(IBFS)
+%check for deg or non deg
+TotalBFS=length(nonzeros(X));
+if TotalBFS==BFS
+    fprintf('Initial BFS is Non-Degenerate');
+else
+     fprintf('Initial BFS is Degenerate');
+end
+Initial_cost=sum(sum(ICost.*X))
+fprintf('Initial Bfs cost is=%d\n',Initial_cost)
